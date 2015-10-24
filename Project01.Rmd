@@ -1,0 +1,117 @@
+---
+title: "Motor Trend - MPG for Manual and Automatiuc Tranmission Cars"
+author: "Eugene"
+date: "21 October 2015"
+output: pdf_document
+---
+###Executive Summary
+This report seeks to analyse the fuel efficiency (mpg) difference between manual and automatic transmission in cars. It is found that fuel efficiency depends in first part on vehicle weight and secondly on racing performance (the $\frac{1}{4}$ mile times). When both these effects are accounted for, we find no difference in fuel consumption between *Automatic* and *Manual* cars. In other words, simply replacing one gear box with another cannot be shown to effect fuel consumption.
+
+
+###Data
+This analysis looks at mpg performance of a cars based on vehicle characteristics. It is based on the data contained in mtcars which, "...was extracted from the 1974 Motor Trend US magazine, and comprises fuel consumption and 10 aspects of automobile design and performance for 32 automobiles (1973-74 models)". It has to be said that the 32 models are a fairly esoteric choice.  
+The data was statistically analysed by Henderson and Vellman in [Biometrics journal in 1981](http://www.mortality.org/INdb/2008/02/12/8/document.pdf).  
+It proved easier to examine the data in terms of *fuel consumption* (expressed as Litres per 100km) rather than *fuel economy* (expressed as mpg). The equation transforming these figures is:  
+$Litres  per  100km = \frac{4.54609 \times 5 \times 100}{8 \times mpg}$
+
+###Analysis
+The two research questions addressed in this are:  
+1. Is an automatic or manual transmission better for MPG  
+2. Quantify the MPG difference between automatic and manual transmissions  
+The two questions will be answered in turn.  
+
+###Impact of Manual or Automatic Tranmission on MPG Values  
+The figure in **appendix 1** shows a boxplot of fuel comsumption for the two trasmission types.
+
+```{r echo=FALSE, include=FALSE}
+library(ggplot2)
+library(dplyr)
+data(mtcars)
+mtcars$am = factor(mtcars$am,levels=c(0,1),labels=c("Automatic","Manual"))
+mtcars$cyl = factor(mtcars$cyl,levels=c(4, 6, 8),labels=c("4cyl","6cyl", "8cyl"))
+mtcars = mutate(mtcars, mpg = 4.54609*5*100/8/mpg)
+names(mtcars)[names(mtcars)=="mpg"] <- "fuel"
+```
+
+Automatic cars certainly seem to have higher fuel consumption figures. However, this might just be due to the fact that larger, more fuel thirsty cars, might also tend to be automatics. The diagrams in **appendix 2** lend some credence to this possibility. They show a plot of weight versus fuel consumption. Admittedly, there is a lot going on in these figures, but they seem to show that heavier cars with a greater number of cylinders have worse economy, and that these cars tend to be automatics. But the slopes and the intercepts of the two lines are comparible. We also see that high performance cars, those with fast $\frac{1}{4}$ mile times (represented by larger point sizes in the diagrams) have higher fuel consumption.
+
+
+With that in mind, we are going to try and separate out confounding factors to see if, all else being equal, automatic cars are indeed more fuel thirsty than manuals. 
+
+First of all, lets see which factors seem to influence fuel consumption:  
+```{r echo=FALSE}
+fit_all = lm(fuel~., data=mtcars)
+summary(fit_all)$coefficients
+```
+ 
+From this table, the wt factor seems to the most promising to investigate, its p value at `r signif(summary(fit_all)$coefficients[7,4], 3)` is smallest.
+
+When examining the dependence on wt alone we get:  
+```{r echo=FALSE}
+fit_wt = lm(fuel~wt, data=mtcars)
+summary(fit_wt)$coefficients
+```
+
+Note, the more significant p-value when wt is considered on its own is because lots of the other co-factors also scale with wt and *consume* some of its significance.
+
+Next we look at the residuals left after the fuel consumption dependence on wt has been removed. The only remaining factor that shows a significant effect on these residuals is qsec, the $\frac{1}{4}$ mile times. 
+
+```{r echo=FALSE}
+residuals = residuals(fit_wt)
+mtcars = cbind(mtcars, residuals)
+fit_qsec = lm(residuals~qsec, mtcars)
+summary(fit_qsec)$coefficients
+```
+
+A plot of residuals versus qsec, along with the best fit line, is shown in **appendix 3**.  
+
+Finally, we want to see if the remaining variation in the fuel consumption figures depends on the gear box, automayic or manual. The resulting analysis is shown below. 
+
+```{r echo=FALSE}
+qsec_residuals = residuals(fit_qsec)
+mtcars = cbind(mtcars, qsec_residuals)
+fit_am = lm(residuals~am, mtcars)
+summary(fit_am)$coefficients
+```
+
+The resulting p-vales for intercept and slope are both large (`r signif(summary(fit_am)$coefficients[1,4], 3)` and `r signif(summary(fit_am)$coefficients[2,4], 3)` respectively). Therefore we can accept the null hypothesis that **fuel consumption is independent of Automatic or Manual**.
+
+Additional documents and the R markdown file can be found (here)[]
+
+###Appendix 1
+
+```{r echo=FALSE, out.height = '200px', dpi=200, fig.align='center'}
+g <- ggplot(data=mtcars, aes(x=am, y=fuel, fill=am))
+g <- g + geom_boxplot()
+g <- g + labs(x="Transmission",
+              y="Fuel Consumption (L/100km)",
+              title="Fuel Consumption for Automatoc vs Manual Transmission")
+g
+```
+
+###Appendix 2
+
+```{r echo=FALSE}
+gg2 = ggplot(data=mtcars, aes(x=wt, y=fuel))
+gg2 = gg2 + geom_point(aes(col=cyl, size=1/qsec))
+gg2 = gg2 + facet_grid(.~am)
+gg2 = gg2 + geom_smooth(method = "lm")
+gg2 = gg2 + labs(x="Weight",
+              y="Fuel Consumption (L/100km)",
+              title="Fuel Consumption by Weight")
+gg2
+```
+
+###Appendix 3
+
+```{r echo=FALSE}
+gg3 = ggplot(data=mtcars, aes(x=qsec, y=residuals))
+gg3 = gg3 + geom_point(aes(col=am))
+gg3 = gg3 + labs(x="1/4 mile time",
+              y="Residuals",
+              title="Residuals vs 1/4 Mile Time")
+gg3 = gg3 +geom_abline(intercept=summary(fit_qsec)$coefficients[1,1],
+                       slope=summary(fit_qsec)$coefficients[2,1], size=2, col=556)
+gg3
+```
+
