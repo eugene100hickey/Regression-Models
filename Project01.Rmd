@@ -76,7 +76,7 @@ summary(fit_am)$coefficients
 
 The resulting p-vales for intercept and slope are both large (`r signif(summary(fit_am)$coefficients[1,4], 3)` and `r signif(summary(fit_am)$coefficients[2,4], 3)` respectively). Therefore we can accept the null hypothesis that **fuel consumption is independent of Automatic or Manual**.
 
-Additional documents and the R markdown file can be found (here)[]
+Additional documents and the R markdown file can be found [at this git repo](https://github.com/eugene100hickey/Regression-Models)
 
 ###Appendix 1
 
